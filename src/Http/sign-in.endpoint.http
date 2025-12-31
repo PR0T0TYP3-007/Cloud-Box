@@ -1,0 +1,11 @@
+# Sign in (public) — copy the access_token from the JSON response and set it as @jwt
+# Example: add at top of this file: @jwt = eyJhbGciOi... (paste token)
+POST http://localhost:3000/auth/signin
+Content-Type: application/json
+{
+  "email": "test5@gmail.com",
+  "password": "123456"
+}
+
+###
+# After running this, copy response.access_token and set `@jwt` variable as shown above to call protected endpoints.

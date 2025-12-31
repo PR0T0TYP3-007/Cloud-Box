@@ -1,0 +1,5 @@
+# Protected endpoint — set `@jwt` variable with the access_token returned from sign-in
+# Example: add a line at the top of this file: @jwt = <access_token>
+@jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YjQ0YTJhZi1mMjBjLTQ1MjQtODU1My02NzZiZDI2YWUxOWUiLCJlbWFpbCI6InRlc3QyQGdtYWlsLmNvbSIsImlhdCI6MTc2NzAyNzM5NywiZXhwIjoxNzY3MDMwOTk3fQ.8Z6YDZXEEwr7DGSr53xmKQmMPz6KZYFJlYV3w1HgXMk
+GET http://localhost:3000/auth/me
+Authorization: Bearer {{jwt}}

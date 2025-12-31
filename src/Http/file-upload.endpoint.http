@@ -1,0 +1,16 @@
+# Upload file (protected) — include Authorization header
+# Set @jwt variable first from sign-in response
+POST http://localhost:3000/files/upload
+Authorization: Bearer {{jwt}}
+Content-Type: multipart/form-data
+
+--boundary
+Content-Disposition: form-data; name="folderId"
+
+{{folderId}}
+--boundary
+Content-Disposition: form-data; name="file"; filename="example.txt"
+Content-Type: text/plain
+
+< ./path/to/example.txt
+--boundary--

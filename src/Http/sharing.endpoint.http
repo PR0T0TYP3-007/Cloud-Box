@@ -1,0 +1,23 @@
+### Create a share
+POST http://localhost:3000/shares
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "itemId": "{{fileOrFolderId}}",
+  "itemType": "file",
+  "email": "userb@example.com",
+  "permission": "view"
+}
+
+### List shares sent to me
+GET http://localhost:3000/shares/shared-with-me
+Authorization: Bearer {{jwt}}
+
+### List shares I sent
+GET http://localhost:3000/shares/sent
+Authorization: Bearer {{jwt}}
+
+### Revoke share
+DELETE http://localhost:3000/shares/{{shareId}}
+Authorization: Bearer {{jwt}}

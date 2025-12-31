@@ -1,0 +1,51 @@
+### Download file
+GET http://localhost:3000/files/{{fileId}}/download
+Authorization: Bearer {{jwt}}
+
+### Rename file
+PATCH http://localhost:3000/files/{{fileId}}/rename
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "name": "new-name.jpg"
+}
+
+### Delete file
+DELETE http://localhost:3000/files/{{fileId}}
+Authorization: Bearer {{jwt}}
+
+### Move file
+POST http://localhost:3000/files/{{fileId}}/move
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "targetFolderId": "{{targetFolderId}}" // or null to move to root
+}
+
+### Rename folder
+PATCH http://localhost:3000/folders/{{folderId}}/rename
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "name": "New Folder Name"
+}
+
+### Move folder
+POST http://localhost:3000/folders/{{folderId}}/move
+Content-Type: application/json
+Authorization: Bearer {{jwt}}
+
+{
+  "targetFolderId": "{{targetFolderId}}" // or null to move to root
+}
+
+### Delete folder (non-recursive)
+DELETE http://localhost:3000/folders/{{folderId}}
+Authorization: Bearer {{jwt}}
+
+### Delete folder (recursive)
+DELETE http://localhost:3000/folders/{{folderId}}?recursive=true
+Authorization: Bearer {{jwt}}
