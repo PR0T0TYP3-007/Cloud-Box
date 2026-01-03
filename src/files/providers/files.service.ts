@@ -341,17 +341,33 @@ export class FilesService {
     if (!userId) throw new BadRequestException('Missing user id');
     if (!fileId) throw new BadRequestException('Missing file id');
 
-    const file = await this.fileRepository.findOne({ where: { id: fileId }, relations: ['user', 'versions'] });
+    const file = await this.fileRepository.findOne({ 
+      where: { id: fileId }, 
+      relations: ['user'] 
+    });
     if (!file) throw new NotFoundException('File not found');
     if (file.user.id !== userId) {
       throw new ForbiddenException('File does not belong to the authenticated user');
     }
 
-    // Delete all versions from storage
-    if (file.versions && file.versions.length > 0) {
-      for (const version of file.versions) {
-        await this.storageAdapter.deleteFile(version.storageKey);
+    // Delete file from S3 storage
+    if (file.storagePath) {
+      try {
+        await this.s3StorageService.deleteFile(file.storagePath);
+      } catch (err) {
+        console.warn('Failed to delete file from S3:', file.storagePath, err);
       }
+    }
+
+    // Delete thumbnail if exists
+    const thumbnailKey = this.s3StorageService.generateThumbnailKey(file.id);
+    try {
+      const exists = await this.s3StorageService.fileExists(thumbnailKey);
+      if (exists) {
+        await this.s3StorageService.deleteFile(thumbnailKey);
+      }
+    } catch (err) {
+      console.warn('Failed to delete thumbnail:', thumbnailKey, err);
     }
 
     // Delete from database

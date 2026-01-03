@@ -12,6 +12,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { Users } from 'src/database/user.entity';
 import { DEFAULT_STORAGE_QUOTA_BYTES } from 'src/common/storage.constants';
 import type { Archiver } from 'archiver';
+import { S3StorageService } from 'src/common/s3-storage.service';
 
 @Injectable()
 export class FolderService {
@@ -29,6 +30,7 @@ export class FolderService {
     private readonly userRepository: Repository<Users>,
 
     private readonly sharingService: SharingService,
+    private readonly s3StorageService: S3StorageService,
   ) {}
 
   async listForUser(userId: string): Promise<Folder[]> {
@@ -471,16 +473,14 @@ export class FolderService {
 
     // Delete all files in these folders from storage and database
     for (const fid of allFolderIds) {
-      const files = await this.fileRepository.find({ where: { folder: { id: fid } }, relations: ['versions'] });
+      const files = await this.fileRepository.find({ where: { folder: { id: fid } } });
       for (const file of files) {
-        // Delete file versions from storage
-        if (file.versions && file.versions.length > 0) {
-          for (const version of file.versions) {
-            try {
-              await this.storageAdapter.deleteFile(version.storageKey);
-            } catch (err) {
-              console.warn('Failed to delete file from storage:', version.storageKey, err);
-            }
+        // Delete file from S3 storage
+        if (file.storagePath) {
+          try {
+            await this.s3StorageService.deleteFile(file.storagePath);
+          } catch (err) {
+            console.warn('Failed to delete file from storage:', file.storagePath, err);
           }
         }
         // Delete file from database
