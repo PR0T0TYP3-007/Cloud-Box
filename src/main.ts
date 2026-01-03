@@ -8,7 +8,7 @@ async function bootstrap() {
   
   // CORS configuration for production
   const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',') 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : ['http://localhost:4000'];
   
   app.enableCors({ 
@@ -16,11 +16,19 @@ async function bootstrap() {
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
       
+      // Check exact match
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+        return callback(null, true);
       }
+      
+      // Check if it's a Vercel preview deployment
+      if (origin.includes('.vercel.app')) {
+        console.log('Allowing Vercel origin:', origin);
+        return callback(null, true);
+      }
+      
+      console.error('CORS blocked origin:', origin, 'Allowed origins:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
     },
     credentials: true 
   });
