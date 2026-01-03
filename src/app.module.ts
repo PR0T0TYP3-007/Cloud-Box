@@ -33,19 +33,25 @@ import { ActivityLog } from './database/activity-log.entity';
     AuthModule, 
     UsersModule, 
     TypeOrmModule.forRoot(
-      {
-        type: 'postgres',
-        entities: [Users, Folder, File, FileVersion, Share, SyncState, UserShare, ActivityLog],
-        synchronize: true,
-        // Support both DATABASE_URL (Supabase/Render) and individual env vars (local)
-        url: process.env.DATABASE_URL,
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432'),
-        username: process.env.DB_USERNAME || 'postgres',
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_DATABASE || 'DropBoxClone',
-        ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-      }
+      process.env.DATABASE_URL
+        ? {
+            type: 'postgres',
+            url: process.env.DATABASE_URL,
+            entities: [Users, Folder, File, FileVersion, Share, SyncState, UserShare, ActivityLog],
+            synchronize: true,
+            ssl: { rejectUnauthorized: false },
+          }
+        : {
+            type: 'postgres',
+            host: process.env.DB_HOST || 'localhost',
+            port: parseInt(process.env.DB_PORT || '5432'),
+            username: process.env.DB_USERNAME || 'postgres',
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_DATABASE || 'DropBoxClone',
+            entities: [Users, Folder, File, FileVersion, Share, SyncState, UserShare, ActivityLog],
+            synchronize: true,
+            ssl: false,
+          }
     ), FoldersModule, FilesModule, VersionsModule, SyncModule, SharingModule, TrashModule, SearchModule, ActivityModule],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
