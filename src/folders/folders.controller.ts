@@ -56,6 +56,13 @@ export class FoldersController {
         return { message: 'Deleted', data: null };
     }
 
+    @Delete(':id/permanent')
+    async permanentlyDeleteFolder(@CurrentUser() user: any, @Param('id') id: string) {
+        const userId = user?.sub ?? user?.id;
+        await this.folderService.permanentlyDeleteFolder(userId, id);
+        return { message: 'Permanently deleted', data: null };
+    }
+
     @Post(':id/restore')
     async restoreFolder(@CurrentUser() user: any, @Param('id') id: string) {
         const userId = user?.sub ?? user?.id;

@@ -449,6 +449,54 @@ export class FolderService {
     return await this.folderRepository.findOne({ where: { id: folderId } }) as Folder;
   }
 
+  async permanentlyDeleteFolder(userId: string, folderId: string): Promise<void> {
+    if (!userId) throw new BadRequestException('Missing user id');
+    if (!folderId) throw new BadRequestException('Missing folder id');
+
+    const folder = await this.folderRepository.findOne({ where: { id: folderId }, relations: ['user'] });
+    if (!folder) throw new NotFoundException('Folder not found');
+    if (folder.user.id !== userId) {
+      throw new ForbiddenException('Folder does not belong to the authenticated user');
+    }
+
+    // Get all descendant folders
+    const queue = [folder.id];
+    const allFolderIds: string[] = [];
+    while (queue.length) {
+      const fid = queue.shift()!;
+      allFolderIds.push(fid);
+      const children = await this.folderRepository.find({ where: { parent: { id: fid } } });
+      for (const c of children) queue.push(c.id);
+    }
+
+    // Delete all files in these folders from storage and database
+    for (const fid of allFolderIds) {
+      const files = await this.fileRepository.find({ where: { folder: { id: fid } }, relations: ['versions'] });
+      for (const file of files) {
+        // Delete file versions from storage
+        if (file.versions && file.versions.length > 0) {
+          for (const version of file.versions) {
+            try {
+              await this.storageAdapter.deleteFile(version.storageKey);
+            } catch (err) {
+              console.warn('Failed to delete file from storage:', version.storageKey, err);
+            }
+          }
+        }
+        // Delete file from database
+        await this.fileRepository.remove(file);
+      }
+    }
+
+    // Delete all folders from database (in reverse order to avoid constraint issues)
+    for (let i = allFolderIds.length - 1; i >= 0; i--) {
+      const f = await this.folderRepository.findOne({ where: { id: allFolderIds[i] } });
+      if (f) {
+        await this.folderRepository.remove(f);
+      }
+    }
+  }
+
   async downloadFolderAsZip(userId: string, folderId: string): Promise<{ zipStream: Archiver; folderName: string }> {
     if (!userId) throw new BadRequestException('Missing user id');
     if (!folderId) throw new BadRequestException('Missing folder id');

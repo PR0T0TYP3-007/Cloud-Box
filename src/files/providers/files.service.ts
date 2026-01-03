@@ -337,6 +337,27 @@ export class FilesService {
     }
   }
 
+  async permanentlyDeleteFile(userId: string, fileId: string): Promise<void> {
+    if (!userId) throw new BadRequestException('Missing user id');
+    if (!fileId) throw new BadRequestException('Missing file id');
+
+    const file = await this.fileRepository.findOne({ where: { id: fileId }, relations: ['user', 'versions'] });
+    if (!file) throw new NotFoundException('File not found');
+    if (file.user.id !== userId) {
+      throw new ForbiddenException('File does not belong to the authenticated user');
+    }
+
+    // Delete all versions from storage
+    if (file.versions && file.versions.length > 0) {
+      for (const version of file.versions) {
+        await this.storageAdapter.deleteFile(version.storageKey);
+      }
+    }
+
+    // Delete from database
+    await this.fileRepository.remove(file);
+  }
+
   async getUserUsedStorage(userId: string): Promise<number> {
     if (!userId) throw new BadRequestException('Missing user id');
     try {

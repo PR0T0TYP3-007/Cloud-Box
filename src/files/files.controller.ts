@@ -112,6 +112,25 @@ export class FilesController {
     return { message: 'Deleted', data: null };
   }
 
+  @Delete(':id/permanent')
+  async permanentlyDeleteFile(@CurrentUser() user: any, @Param('id') id: string, @Req() req?: Request) {
+    const userId = user?.sub ?? user?.id;
+    await this.filesService.permanentlyDeleteFile(userId, id);
+    
+    // Log activity
+    await this.activityService.logActivity({
+      user: { id: userId } as any,
+      action: ActivityAction.FILE_DELETE,
+      resourceType: 'file',
+      resourceId: id,
+      metadata: { permanent: true },
+      ipAddress: req?.ip,
+      userAgent: req?.headers['user-agent'],
+    });
+    
+    return { message: 'Permanently deleted', data: null };
+  }
+
   @Post(':id/restore')
   async restoreFile(@CurrentUser() user: any, @Param('id') id: string) {
     const userId = user?.sub ?? user?.id;
