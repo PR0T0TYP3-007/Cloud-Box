@@ -50,7 +50,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
     });
 
-    return { message: 'Authenticated', data: { user: (result as any).user } };
+    return { message: 'Authenticated', data: { user: (result as any).user, token } };
   }
 
   @HttpCode(HttpStatus.OK)
@@ -77,7 +77,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
     });
 
-    return { message: 'Authenticated', data: { user: (result as any).user } };
+    return { message: 'Authenticated', data: { user: (result as any).user, token } };
   }
 
   @Post('signout')
