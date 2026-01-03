@@ -38,7 +38,7 @@ import { ActivityLog } from './database/activity-log.entity';
             type: 'postgres',
             url: process.env.DATABASE_URL,
             entities: [Users, Folder, File, FileVersion, Share, SyncState, UserShare, ActivityLog],
-            synchronize: true,
+            synchronize: false,
             ssl: { rejectUnauthorized: false },
           }
         : {
