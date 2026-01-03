@@ -1,0 +1,86 @@
+Cloud-Box — Project Structure
+
+Root
+- eslint.config.mjs
+- nest-cli.json
+- package.json
+- README.md
+- tsconfig.build.json
+- tsconfig.json
+- about-project.txt
+- about-project/ (this folder)
+- src/
+  - main.ts
+  - app.module.ts
+  - app.controller.ts
+  - app.service.ts
+  - auth/
+    - auth.controller.ts
+    - auth.module.ts
+    - auth.controller.spec.ts
+    - decorators/
+      - current-user.decorator.ts
+      - public.decorator.ts
+    - dto/
+      - sign-in.dto.ts
+      - sign-up.dto.ts
+    - guards/
+      - jwt.guard.ts
+    - providers/
+      - auth.service.ts
+      - bcrypt.provider.ts
+      - hashing.provider.ts
+  - database/
+    - user.entity.ts
+    - folder.entity.ts
+    - file.entity.ts
+    - file-version.entity.ts
+    - share.entity.ts
+    - sync-state.entity.ts
+    - user-share.entity.ts
+  - files/
+    - files.controller.ts
+    - files.module.ts
+    - dtos/
+      - move-file.dto.ts
+      - rename-file.dto.ts
+    - providers/
+      - files.service.ts
+  - folders/
+    - folders.controller.ts
+    - folders.module.ts
+    - dtos/
+      - folders.dto.ts
+      - move-folder.dto.ts
+      - rename-folder.dto.ts
+    - providers/
+      - folders.service.ts
+  - folder/
+    - folder.controller.ts
+  - sharing/
+    - sharing.controller.ts
+    - sharing.module.ts
+    - dtos/
+      - create-share.dto.ts
+    - providers/
+      - sharing.service.ts
+  - sync/
+    - sync.module.ts
+  - users/
+    - users.module.ts
+    - providers/
+      - users.service.ts
+  - versions/
+    - versions.module.ts
+- test/
+  - app.e2e-spec.ts
+  - jest-e2e.json
+- uploads/
+  - resumable/
+  - tus/
+- dist/ (compiled output)
+
+Notes
+- The `src/` directory contains the NestJS application with modules for auth, users, files, folders, sharing, sync, and versions.
+- `uploads/` holds file blobs written by the server (local development storage).
+- `about-project/structure.txt` is this file; `about-project.txt` contains the project overview and API response documentation.

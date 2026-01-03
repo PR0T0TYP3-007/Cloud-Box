@@ -1,10 +1,10 @@
 # Create folder (protected) — include Authorization header
 # Make sure to set `@jwt = <access_token>` (see sign-in request)
-@jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0ODgyM2NjZi02Y2IxLTQ0ZGYtOTQ2ZC0xMjk2YjAyYzdlZGUiLCJlbWFpbCI6InRlc3Q1QGdtYWlsLmNvbSIsImlhdCI6MTc2NzAzMzA1MSwiZXhwIjoxNzY3MDM2NjUxfQ.UAdi9VEDGszI_AckBv2edOz9SHFcnlVwrCpNLJEc6v0
+@jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjYTBlZDA2NS1hMTcwLTRhYTgtYThiNC0wNzQxNDFhZjhhOTMiLCJlbWFpbCI6InRlc3Q1QGdtYWlsLmNvbSIsImlhdCI6MTc2NzE3NzI4MiwiZXhwIjoxNzY3MTgwODgyfQ.7Si8UpddbJ5AGPsFvnCkujRZ_B50iUeEs2U5kATOeH4
 POST http://localhost:3000/folders
 Authorization: Bearer {{jwt}}
 Content-Type: application/json
 {
-  "name": "Ui",
-  "parentId": "858c0dbb-52d4-4a71-b9e7-87d6a60c4821"
+  "name": "Components",
+  "parentId": "9eb78839-4747-437c-9d45-2b8e8e03d9d4"
 }

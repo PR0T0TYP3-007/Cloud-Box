@@ -1,5 +1,6 @@
 # Sign in (public) — copy the access_token from the JSON response and set it as @jwt
 # Example: add at top of this file: @jwt = eyJhbGciOi... (paste token)
+@jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjYTBlZDA2NS1hMTcwLTRhYTgtYThiNC0wNzQxNDFhZjhhOTMiLCJlbWFpbCI6InRlc3Q1QGdtYWlsLmNvbSIsImlhdCI6MTc2NzE3NzI4MiwiZXhwIjoxNzY3MTgwODgyfQ.7Si8UpddbJ5AGPsFvnCkujRZ_B50iUeEs2U5kATOeH4
 POST http://localhost:3000/auth/signin
 Content-Type: application/json
 {

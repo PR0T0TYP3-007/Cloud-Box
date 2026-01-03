@@ -1,0 +1,20 @@
+### Change Password
+POST http://localhost:3000/auth/change-password
+Content-Type: application/json
+
+{
+  "currentPassword": "password123",
+  "newPassword": "newpassword123"
+}
+
+###
+
+### Delete Account
+DELETE http://localhost:3000/auth/account
+Content-Type: application/json
+
+{
+  "password": "password123"
+}
+
+###

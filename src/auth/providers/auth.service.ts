@@ -6,6 +6,7 @@ import { SignUpDto } from '../dto/sign-up.dto';
 import { Users } from 'src/database/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { FolderService } from 'src/folders/providers/folders.service';
+import { FilesService } from 'src/files/providers/files.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,9 @@ export class AuthService {
 
         @Inject(forwardRef(() => FolderService))
         private readonly folderService: FolderService,
+
+        @Inject(forwardRef(() => FilesService))
+        private readonly filesService: FilesService,
     ) {}
 
     async SignUp(signUpData: SignUpDto): Promise<Users | { message: string }> {
@@ -61,5 +65,65 @@ export class AuthService {
     async getUserFromPayload(payload: { sub: number; email: string }): Promise<Users | null> {
         const user = await this.userService.findOneUser(payload.email);
         return user;
+    }
+
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+        const user = await this.userService.findUserById(userId);
+        if (!user) {
+            return { success: false, message: 'User not found' };
+        }
+
+        // Verify current password
+        const isMatch = await this.hashingProvider.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return { success: false, message: 'Current password is incorrect' };
+        }
+
+        // Hash new password
+        const newPasswordHash = await this.hashingProvider.hash(newPassword);
+        
+        // Update password
+        const updated = await this.userService.updateUserPassword(userId, newPasswordHash);
+        if (!updated) {
+            return { success: false, message: 'Failed to update password' };
+        }
+
+        return { success: true, message: 'Password changed successfully' };
+    }
+
+    async deleteAccount(userId: string, password: string): Promise<{ success: boolean; message: string }> {
+        const user = await this.userService.findUserById(userId);
+        if (!user) {
+            return { success: false, message: 'User not found' };
+        }
+
+        // Verify password before deletion
+        const isMatch = await this.hashingProvider.compare(password, user.password);
+        if (!isMatch) {
+            return { success: false, message: 'Incorrect password' };
+        }
+
+        try {
+            // Step 1: Delete all S3 files and thumbnails for this user
+            console.log(`Cleaning up S3 files for user ${userId}...`);
+            const cleanupResult = await this.filesService.cleanupUserS3Files(userId);
+            console.log(`S3 cleanup completed: ${cleanupResult.deletedFiles} files deleted`);
+            
+            if (cleanupResult.errors.length > 0) {
+                console.warn(`S3 cleanup had ${cleanupResult.errors.length} errors:`, cleanupResult.errors);
+                // Continue with deletion even if some S3 files failed to delete
+            }
+
+            // Step 2: Delete user (this will cascade delete all DB records: files, folders, shares, etc.)
+            const deleted = await this.userService.deleteUser(userId);
+            if (!deleted) {
+                return { success: false, message: 'Failed to delete account from database' };
+            }
+
+            return { success: true, message: 'Account and all associated data deleted successfully' };
+        } catch (error) {
+            console.error('Error during account deletion:', error);
+            return { success: false, message: `Failed to delete account: ${error.message}` };
+        }
     }
 }  

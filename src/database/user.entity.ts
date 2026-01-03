@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { DEFAULT_STORAGE_QUOTA_BYTES } from 'src/common/storage.constants';
 
 @Entity({ name: 'users' })
 export class Users {
@@ -14,5 +15,8 @@ export class Users {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @Column({ type: 'bigint', name: 'storage_quota', default: DEFAULT_STORAGE_QUOTA_BYTES.toString() })
+  storageQuota: string; // bytes as string
 
 }

@@ -7,6 +7,8 @@ import { HashingProvider } from './providers/hashing.provider';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './guards';
 import { FoldersModule } from 'src/folders/folders.module';
+import { FilesModule } from 'src/files/files.module';
+import { ActivityModule } from 'src/activity/activity.module';
 
 @Module({
   controllers: [AuthController],
@@ -14,6 +16,8 @@ import { FoldersModule } from 'src/folders/folders.module';
   imports: [
     forwardRef(() => UsersModule),
     forwardRef(() => FoldersModule),
+    forwardRef(() => FilesModule),
+    forwardRef(() => ActivityModule),
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'change_this_secret',
       signOptions: { expiresIn: '1h' },

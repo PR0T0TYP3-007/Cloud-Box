@@ -1,0 +1,501 @@
+Cloud-Box — About this Project
+
+## Overview
+Cloud-Box is a production-ready NestJS-based cloud storage service (similar to Dropbox/Google Drive) with comprehensive file management, user collaboration, and storage quota enforcement.
+
+## Stack
+- **Framework**: NestJS (TypeScript)
+- **Database**: PostgreSQL with TypeORM
+- **Authentication**: JWT with HttpOnly cookies
+- **Storage**: Local filesystem (development) / S3-ready architecture
+- **Password Security**: Bcrypt hashing
+- **Upload Handling**: Multer multipart uploads with quota validation
+
+## Core Features
+
+### Storage Management
+- **5 GB Quota per User** - Enforced at upload/restore time via `DEFAULT_STORAGE_QUOTA_BYTES` constant
+- **Folder Size Calculation** - Recursive BFS traversal excluding soft-deleted items
+- **Real-time Usage Tracking** - Storage stats returned with `/auth/me` endpoint
+- **Quota Enforcement** - `assertWithinQuota()` prevents uploads exceeding limits
+
+### File Operations
+- **Upload/Download** - Single and multi-file uploads with directory structure preservation
+- **File Versioning** - Track version history with checksums (SHA-256)
+- **Soft Deletion** - Files marked as deleted, can be restored from trash
+- **Search** - Full-text search across files and folders (case-insensitive)
+- **Move/Rename** - With duplicate name validation
+
+### Folder Management
+- **Hierarchical Structure** - Parent-child relationships with root folder per user
+- **Recursive Operations** - Size calculation, deletion with cascading
+- **Auto-creation** - Root folder created on signup via `AuthService`
+- **Path Ensurance** - `ensurePath()` creates nested folders idempotently
+
+### Sharing & Permissions
+- **User Shares** - Share files/folders with users via email lookup
+- **Permission Levels**: 
+  - `view` - Read-only access
+  - `edit` - Full modification rights
+- **Inherited Permissions** - Subfolders/files inherit parent folder shares
+- **Permission Validation** - All operations check via `SharingService.hasPermission()`
+- **Ancestor Checking** - Uses `In()` operator for efficient ancestor permission lookups
+
+## Architecture
+
+### Entry Point
+- `src/main.ts` - Bootstraps NestJS app with global ValidationPipe and CORS
+
+### Module Structure
+- `AppModule` - Root module importing all feature modules and TypeORM config
+- `AuthModule` - JWT auth, bcrypt password hashing, guards
+- `UsersModule` - User CRUD operations
+## Database Schema
+
+### Users (`users`)
+- `id` (uuid, primary key)
+- `email` (unique, indexed)
+- `password` (bcrypt hash)
+- `storage_quota` (bigint, default: 5368709120 = 5GB)
+## API Endpoints
+
+### Authentication (`/auth`)
+- `POST /auth/signup` - Register + auto root folder creation
+  - Request: `{ email, password }`
+  - Response: `{ message: "Authenticated", data: { user } }` + sets HttpOnly cookie
+- `POST /auth/signin` - Login
+  - Request: `{ email, password }`
+  - Response: `{ message: "Authenticated", data: { user } }` + sets HttpOnly cookie
+- `POST /auth/signout` - Logout (clears cookie)
+  - Response: `{ message: "Signed out", data: null }`
+- `GET /auth/me` - Get current user with storage stats
+  - Response: `{ message: "OK", data: { ...user, storage: { used, quota } } }`
+
+### Files (`/files`)
+- `POST /files/upload` - Single file upload
+  - Form data: `file` (binary), `folderId` (optional)
+  - Response: `{ message: "Uploaded", data: { file, version } }`
+- `POST /files/upload-multi` - Multiple files/folders
+  - Form data: `files[]` (binaries), `paths` (JSON array)
+  - Response: `{ message: "Uploaded", data: { successes, errors } }`
+- `GET /files/:id/download` - Stream file download
+  - Response: Binary stream with `Content-Disposition: attachment`
+- `PATCH /files/:id/rename` - Rename file
+  - Request: `{ name }`
+  - Response: `{ message: "Renamed", data: { file } }`
+- `POST /files/:id/move` - Move to folder
+  - Request: `{ targetFolderId }`
+  - Response: `{ message: "Moved", data: { file } }`
+- `DELETE /files/:id` - Soft delete
+  - Response: `{ message: "Deleted", data: null }`
+- `POST /files/:id/restore` - Restore from trash
+  - Response: `{ message: "Restored", data: { file } }`
+
+### Folders (`/folders`)
+- `GET /folders?folderId=...` - Get folder view
+  - Response: `{ message: "OK", data: { parentName, folder, folders, files, storage } }`
+  - Includes computed folder sizes and storage quota
+- `POST /folders` - Create folder
+  - Request: `{ name, parentId }`
+  - Response: `{ message: "Created", data: { ...folderView } }`
+- `PATCH /folders/:id/rename` - Rename folder
+  - Request: `{ name }`
+  - Response: `{ message: "Renamed", data: { folder } }`
+- `POST /folders/:id/move` - Move folder
+  - Request: `{ targetFolderId }`
+  - Response: `{ message: "Moved", data: { folder } }`
+- `GET /folders/:id/ancestors` - Get breadcrumb path
+  - Response: `{ message: "OK", data: [...ancestors] }`
+- `DELETE /folders/:id?recursive=true` - Soft delete
+  - Response: `{ message: "Deleted", data: null }`
+- `POST /folders/:id/restore` - Restore from trash
+  - Response: `{ message: "Restored", data: { folder } }`
+
+### Sharing (`/shares`)
+- `POST /shares` - Create share
+  - Request: `{ itemId, itemType, email, permission }`
+  - Response: `{ message: "Shared", data: { shareId } }`
+- `GET /shares/shared-with-me` - List items shared with current user
+  - Response: `{ message: "OK", data: [...shares] }`
+  - Excludes deleted items
+- `GET /shares/sent` - List shares created by current user
+  - Response: `{ message: "OK", data: [...shares] }`
+- `DELETE /shares/:id` - Revoke share
+  - Response: `{ message: "Revoked", data: null }`
+
+### Search (`/search`)
+- `GET /search?q=query` - Search files and folders
+  - Response: `{ files: [...], folders: [...] }`
+  - Case-insensitive, excludes deleted items
+
+### Trash (`/trash`)
+- `GET /trash` - List deleted items
+- `DELETE /trash/:id` - Permanent deletion
+
+### Versions (`/versions`)
+- `GET /versions/:fileId` - List file versions
+- `POST /versions/:versionId/restore` - Restore specific version
+## Configuration & Environment
+
+### Required Environment Variables
+```env
+# Database
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USER=postgres
+DATABASE_PASSWORD=your_secure_password
+DATABASE_NAME=cloudbox_dev
+
+# Authentication
+JWT_SECRET=your_long_random_secret_min_32_chars
+
+# Server
+NODE_ENV=development
+PORT=3000
+
+# Storage
+UPLOAD_DIR=./uploads
+```
+
+### Current Configuration Issues (TO FIX)
+⚠️ **Hardcoded DB credentials in `src/app.module.ts`**
+- Database: `DropBoxClone`
+- Host: `localhost`
+- Port: `5432`
+- Username: `postgres`
+- Password: `2099`
+- **Action**: Move to environment variables using `@nestjs/config`
+
+⚠️ **TypeORM `synchronize: true`**
+- Auto-updates schema on entity changes
+- **Development only** - causes data loss in production
+- **Action**: Disable for production, use migrations
+
+⚠️ **JWT Secret fallback**
+- Falls back to `'change_this_secret'` if not set
+- **Action**: Enforce required environment variable
+
+### npm Scripts
+- `npm run start` - Production build start
+- `npm run start:dev` - Watch mode development
+## Production Readiness Checklist
+
+### Security
+- [ ] Remove hardcoded DB credentials from source code
+- [ ] Set strong JWT_SECRET (minimum 32 random characters)
+- [ ] Disable TypeORM `synchronize: true`
+- [ ] Implement TypeORM migrations
+- [ ] Add rate limiting (e.g., `@nestjs/throttler`)
+- [ ] Configure HTTPS/TLS
+## Getting Started for New Developers
+
+### Initial Setup
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Set Up Database**
+   - Install PostgreSQL locally or use Docker:
+     ```bash
+     docker run --name cloudbox-postgres -e POSTGRES_PASSWORD=yourpassword -p 5432:5432 -d postgres
+     ```
+   - Create database:
+     ```sql
+     CREATE DATABASE cloudbox_dev;
+     ```
+
+3. **Configure Environment**
+   - Create `.env` file with required variables (see Configuration section)
+   - Update `src/app.module.ts` TypeORM config to read from environment
+
+4. **Start Development Server**
+   ```bash
+   npm run start:dev
+   ```
+   - Backend runs at `http://localhost:3000`
+
+5. **Test API**
+   - Use `src/Http/*.http` files for quick endpoint testing
+   - Or use Postman/Insomnia with example requests below
+
+### Example API Flow
+1. **Register User**
+   ```bash
+   POST http://localhost:3000/auth/signup
+   Content-Type: application/json
+
+   {
+     "email": "test@example.com",
+     "password": "securepass123"
+   }
+   ```
+
+2. **Login** (sets HttpOnly cookie)
+   ```bash
+   POST http://localhost:3000/auth/signin
+   Content-Type: application/json
+
+   {
+     "email": "test@example.com",
+     "password": "securepass123"
+   }
+   ```
+
+3. **Check Storage** (requires cookie from login)
+   ```bash
+   GET http://localhost:3000/auth/me
+   ```
+
+4. **Upload File** (requires cookie)
+   ```bash
+   POST http://localhost:3000/files/upload
+   Content-Type: multipart/form-data
+
+   file: [binary file]
+   folderId: [optional folder uuid]
+   ```
+
+### Important Files to Know
+- `src/main.ts` - Application entry point
+- `src/app.module.ts` - Root module + database config
+- `src/auth/providers/auth.service.ts` - Authentication logic
+- `src/files/providers/files.service.ts` - File operations + quota enforcement
+- `src/folders/providers/folders.service.ts` - Folder hierarchy + size calculation
+- `src/sharing/providers/sharing.service.ts` - Permission inheritance logic
+- `src/database/*.entity.ts` - TypeORM entities
+- `src/common/storage.constants.ts` - Storage quota constant (5 GB)
+
+### Testing
+```bash
+# Unit tests
+npm test
+
+# E2E tests
+npm run test:e2e
+
+# Coverage report
+npm run test:cov
+```
+
+### Debugging
+- Use VS Code debugger with `npm run start:debug`
+- Add breakpoints in TypeScript source files
+- Check `uploads/` directory for stored file blobs
+- Monitor PostgreSQL queries with logging enabled
+
+## Contact & Maintainers
+See repository contributors and commit history for original authors.
+
+---
+
+**Last Updated**: January 2026  
+**Version**: 1.0.0  
+**NestJS Version**: 10.x  
+**Node Version**: 18+
+- [ ] Test permission inheritance scenarios
+
+## Known Issues & Technical Debt
+
+1. **Folder Size Performance** - Recursive calculation runs on every request
+   - Solution: Cache sizes or compute via background job
+
+2. **Synchronous File Writes** - Using `fs.writeFileSync` blocks event loop
+   - Solution: Switch to `fs.promises.writeFile` or streams
+
+3. **Missing Migrations** - Schema managed by `synchronize: true`
+   - Solution: Generate and use TypeORM migrations
+
+4. **No File Type Validation** - Accepts any file type
+   - Solution: Add MIME type whitelist
+
+5. **Permission Inheritance N+1** - Multiple DB queries for ancestor check
+   - Solution: Use recursive CTE or cache folder hierarchy
+
+6. **No Background Jobs** - All operations synchronous
+   - Solution: Implement Bull/BullMQ for async processing
+  - (user, name) when folder IS NULL (root)
+
+### FileVersions (`file_versions`)
+- `id` (uuid)
+- `file_id` (foreign key to files)
+- `version` (integer)
+- `storage_key` (text - filesystem path)
+- `checksum` (text - SHA-256 hash)
+- `size` (bigint)
+- `created_at` (timestamp)
+
+### UserShare (`user_shares`)
+- `id` (uuid)
+- `item_id` (uuid - file or folder id)
+- `item_type` (enum: 'file' | 'folder')
+- `owner_id` (foreign key to users)
+- `shared_with` (foreign key to users)
+- `permission` (enum: 'view' | 'edit')
+- `created_at` (timestamp)
+### Authentication Flow
+- `AuthService` handles signup, signin, JWT creation
+- `HashingProvider` abstraction with `BcryptProvider` implementation
+- `JwtAuthGuard` enforces token-based auth globally
+- Routes can be marked `@Public()` to bypass guard
+- HttpOnly cookies prevent XSS attacks on token
+
+### Persistence Layer
+- **TypeORM + PostgreSQL** - All entities in `src/database/`
+- **Entities**: Users, Folder, File, FileVersion, UserShare, SyncState
+- **Development Mode**: `synchronize: true` auto-updates schema
+- **Production**: Should use TypeORM migrations
+
+### File Storage
+- Files written to `uploads/<userId>/` with UUID filenames
+- `storagePath` recorded on File/FileVersion entities
+- Checksums (SHA-256) computed and stored for integrity
+- Ready for S3/cloud storage migration (update `FilesService`)
+
+### Sharing System
+- `SharingService` provides `hasPermission()` for authorization
+- Checks direct shares on item + inherited shares from ancestor folders
+- Uses `In()` operator for efficient multi-folder permission queries
+- Controllers call `hasPermission()` before allowing non-owner access
+
+Database / Entities (summary)
+- Users (`users`): `id` (uuid), `email` (unique), `password`, `created_at`.
+- Folders (`folders`): `id`, `user`, `name`, `parent` (nullable), `children`, `created_at`. Root folder has `parent IS NULL`.
+- Files (`files`): `id`, `user`, `folder` (nullable), `name`, `size` (bigint as string), `currentVersion` (int), `isDeleted`, `storage_path` (text), timestamps. Unique constraints prevent duplicate names in same folder or root.
+- FileVersions (`file_versions`): `id`, `file`, `version`, `storageKey` (path), `checksum` (sha256), `size`, `created_at`.
+- Sharing / Permissions: `user-share` table links items (file/folder) with `sharedWith` users and permission types.
+
+Key Endpoints (representative)
+- Auth (likely under `/auth`): Sign-up and sign-in routes using DTOs `sign-up.dto.ts` and `sign-in.dto.ts` that return JWT tokens and user info.
+- Files (`/files`):
+  - `POST /files/upload` — single multipart upload (`file` field) with optional `folderId`.
+  - `POST /files/upload-multi` — multiple files + JSON `paths` array to preserve directory structure.
+  - `GET /files/:id/download` — stream download of a file.
+  - `PATCH /files/:id/rename` — rename file (body: `name`).
+  - `POST /files/:id/move` — move to folder (body: `targetFolderId`).
+  - `DELETE /files/:id` — delete file (removes version records and storage blobs).
+- Folders: create, list, ensurePath, rename, move, delete (recursive support). See `FolderService` for precise behavior such as `ensurePath` and `createRootFolder`.
+- Sharing (`/sharing`): create shares, list shares (sent/received), revoke shares. Permissions enforced by `SharingService`.
+
+Responses
+- Authentication:
+  - `POST /auth/signup` (after change):
+    - Success (auto sign-in):
+      {
+        "message": "Authenticated",
+        "access_token": "<jwt>",
+        "user": { "id": "<uuid>", "email": "user@example.com", "createdAt": "..." }
+      }
+    - Failure (validation / existing user):
+      { "message": "..." } or standard Nest error response with status code.
+
+  - `POST /auth/signin`:
+    - Success:
+      {
+        "message": "Authenticated",
+        "access_token": "<jwt>",
+        "user": { "id": "<uuid>", "email": "user@example.com", "createdAt": "..." }
+      }
+    - Failure:
+      HTTP 401 Unauthorized with JSON body describing the error.
+
+  - `GET /auth/me`:
+    - Success:
+      { "id": "<uuid>", "email": "user@example.com", "createdAt": "..." }
+    - Failure:
+      HTTP 401 if token missing/invalid.
+
+- Files API responses (representative):
+  - `POST /files/upload` (single):
+    - Success:
+      {
+        "message": "Uploaded",
+        "file": { "id": "<uuid>", "name": "file.txt", "size": "12345", "currentVersion": 1, "storagePath": "uploads/..." },
+        "version": { "id": "<uuid>", "version": 1, "storageKey": "path", "checksum": "sha256", "size": "12345" }
+      }
+  - `POST /files/upload-multi`:
+    - Success: `{ successes: [{ path, fileId, versionId }], errors: [{ path, error }] }`
+  - `GET /files/:id/download`:
+    - Success: binary stream with `Content-Disposition: attachment; filename="..."`.
+  - `PATCH /files/:id/rename`:
+    - Success: `{ message: 'Renamed', file: { id, name } }`
+  - `POST /files/:id/move`:
+    - Success: `{ message: 'Moved', file: { id, name, folderId } }`
+  - `DELETE /files/:id`:
+    - Success: `{ message: 'Deleted' }`
+
+- Folders API responses (representative):
+  - `GET /folders/:id` or view: `{ parentName, folder: { id, name }, children: [{ id, name }] }`
+  - Create/rename/move: return the updated `Folder` object or `{ message: '...' }` on success.
+
+Notes:
+- Controllers return a standardized JSON shape on success: `{ message: string, data: any }` except where streaming binary is returned (file download).
+- Authentication responses now set the JWT as an HttpOnly cookie named `token` (not exposed to JavaScript). Controllers return `{ message, data: { user } }` on sign-in/signup. Frontends must call subsequent requests with credentials included (e.g. `fetch(..., { credentials: 'include' })`). Examples above were updated to reflect `{ message, data }` responses. Frontend should read `data` for payloads and use `message` for display status.
+
+- `POST /auth/signout`:
+  - Clears the HttpOnly `token` cookie server-side and returns `{ message: 'Signed out', data: null }`.
+  - Client should call with `credentials: 'include'` to ensure cookie is sent and cleared properly.
+
+Notable Implementation Details
+- File upload handling: controllers use `multer.memoryStorage()` and services write buffers to disk under `uploads/<userId>/` with uuids for filenames. Checksums (sha256) are computed and stored.
+- Multipart multi-file uploads accept a `paths` JSON array to recreate nested folder structure; `FolderService.ensurePath()` will create missing folders idempotently.
+- Concurrency considerations: `ensurePath` handles potential unique-constraint races by retrying lookups.
+- Authorization: `JwtAuthGuard` parses `Authorization: Bearer <token>` and sets `req.user = payload`. `@CurrentUser()` decorator is used to access authenticated user in controllers.
+- Password hashing: via `BcryptProvider` implementing `HashingProvider` interface.
+
+Configuration & Environment
+- Scripts: see `package.json` — `npm run start`, `start:dev`, `build`, `test`, `test:e2e`, etc.
+- DB config: currently hardcoded in `src/app.module.ts` TypeORM config:
+  - database: `DropBoxClone` | host: `localhost` | port: `5432` | username: `postgres` | password: `2099`
+  - `synchronize: true` (development only) — consider disabling for production and using migrations.
+- JWT secret: `process.env.JWT_SECRET` with fallback `change_this_secret` in `AuthModule`. Set a strong `JWT_SECRET` in production.
+- Recommended environment variables to set for production:
+  - `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME` (update `AppModule` to read from env)
+  - `JWT_SECRET`
+  - `PORT`
+- Uploads folder: `uploads/` (created at runtime). Ensure the process has filesystem permissions for writes. Consider swapping to S3 or other object storage for production.
+
+Development Notes & Recommendations
+- Move hardcoded DB credentials and `synchronize: true` out of source and into configuration using `@nestjs/config` or environment-based config.
+- Add migrations (TypeORM migrations) and disable `synchronize` in production.
+- Consider storing blobs in cloud object storage (S3/GCS) instead of local `uploads/` to scale multiple instances.
+- Add rate-limiting and stricter CORS configuration for production.
+- Improve error reporting and add request-level logging middleware if needed.
+- Secure JWT secret and consider refresh token strategy for long-lived sessions.
+- Current file storage writes full buffers sync via `fs.writeFileSync` — consider switching to async writes/streams for large files and better event-loop behavior.
+
+Testing
+- Unit/e2e: `npm run test` / `npm run test:e2e`. The project includes Jest-based tests (see `test/` and `app.controller.spec.ts`).
+
+Where to look (important files)
+- App entry: src/main.ts
+- App module + DB config: src/app.module.ts
+- Auth: src/auth/* (controllers, providers, guards, decorators)
+- Files: src/files/* (FilesController, FilesService)
+- Folders: src/folders/* (FoldersController, FolderService)
+- Sharing: src/sharing/* (SharingController, SharingService)
+- Entities: src/database/*
+- Upload artefacts: uploads/
+- Example HTTP requests: src/Http/* (collection of endpoints for quick testing)
+
+Onboarding checklist for a new developer
+1. Install deps: `npm install`.
+2. Create a Postgres DB and update DB credentials or set appropriate env vars.
+3. Set `JWT_SECRET` env var.
+4. Start dev server: `npm run start:dev` and point frontend to correct base URL and port.
+5. Create an account using sign-up endpoint, then sign-in to receive JWT for subsequent calls.
+6. Use `POST /files/upload` to test simple uploads. For multi-file uploads use `POST /files/upload-multi` with `paths` JSON body.
+
+Maintainers notes
+- Be careful when running locally: `synchronize: true` will modify DB schema automatically.
+- There are some merge artifacts left in `README.md` from a Git conflict — clean this up.
+
+Contact
+- See repository owner/commit history for original authors and maintainers.
+
+---
+This file was generated from inspecting the project sources. If you want, I can:
+- Convert this into a structured `docs/` markdown with links to code locations.
+- Replace hardcoded DB config in `src/app.module.ts` with environment-based config and add a `.env.example`.
+- Add TypeORM migrations and a production-ready deployment guide.
+

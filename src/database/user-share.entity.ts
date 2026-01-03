@@ -15,11 +15,11 @@ export class UserShare {
   @Column({ type: 'varchar', length: 10, name: 'item_type' })
   itemType: ItemType;
 
-  @ManyToOne(() => Users, { nullable: false })
+  @ManyToOne(() => Users, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })
   owner: Users;
 
-  @ManyToOne(() => Users, { nullable: false })
+  @ManyToOne(() => Users, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'shared_with' })
   sharedWith: Users;
 

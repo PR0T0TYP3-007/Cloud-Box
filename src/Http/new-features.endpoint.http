@@ -1,0 +1,75 @@
+### Activity Logs
+
+# Get user activity
+GET http://localhost:3000/activity?limit=50&offset=0
+
+###
+
+# Get recent activity
+GET http://localhost:3000/activity/recent?limit=20
+
+###
+
+### Batch Operations
+
+# Batch delete
+POST http://localhost:3000/files/batch/delete
+Content-Type: application/json
+
+{
+  "items": [
+    { "id": "file-uuid-1", "type": "file" },
+    { "id": "folder-uuid-1", "type": "folder" }
+  ]
+}
+
+###
+
+# Batch move
+POST http://localhost:3000/files/batch/move
+Content-Type: application/json
+
+{
+  "items": [
+    { "id": "file-uuid-1", "type": "file" },
+    { "id": "folder-uuid-1", "type": "folder" }
+  ],
+  "targetFolderId": "target-folder-uuid-or-null"
+}
+
+###
+
+# Batch restore
+POST http://localhost:3000/files/batch/restore
+Content-Type: application/json
+
+{
+  "items": [
+    { "id": "file-uuid-1", "type": "file" },
+    { "id": "folder-uuid-1", "type": "folder" }
+  ]
+}
+
+###
+
+### File Preview & Thumbnails
+
+# Get file thumbnail (for images)
+GET http://localhost:3000/files/<file-id>/thumbnail
+
+###
+
+# Get file preview (inline viewing)
+GET http://localhost:3000/files/<file-id>/preview
+
+###
+
+# Get file metadata
+GET http://localhost:3000/files/<file-id>/metadata
+
+###
+
+### Folder Download
+
+# Download folder as ZIP
+GET http://localhost:3000/folders/<folder-id>/download

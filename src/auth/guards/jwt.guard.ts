@@ -16,16 +16,26 @@ export class JwtAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest();
+    // Accept either an Authorization header or a cookie named `token` (HttpOnly cookie)
+    let token: string | undefined
     const authHeader = req.headers?.authorization || req.headers?.Authorization;
-    if (!authHeader) throw new UnauthorizedException('Missing Authorization header');
+    if (authHeader) {
+      const parts = authHeader.split(' ');
+      if (parts.length !== 2) throw new UnauthorizedException('Invalid Authorization header');
+      const [scheme, hdrToken] = parts;
+      if (!/^Bearer$/i.test(scheme)) throw new UnauthorizedException('Invalid Authorization header');
+      token = hdrToken;
+    } else if (req.headers && req.headers.cookie) {
+      // parse cookie header for token=...
+      const cookieHeader: string = req.headers.cookie as string;
+      const match = cookieHeader.match(/(?:^|; )token=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
 
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2) throw new UnauthorizedException('Invalid Authorization header');
-    const [scheme, token] = parts;
-    if (!/^Bearer$/i.test(scheme)) throw new UnauthorizedException('Invalid Authorization header');
+    if (!token) throw new UnauthorizedException('Missing Authorization header');
 
     try {
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify(token as string);
       // attach payload for later retrieval
       req.user = payload;
       return true;

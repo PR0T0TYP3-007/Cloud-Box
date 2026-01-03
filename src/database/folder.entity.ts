@@ -23,4 +23,7 @@ export class Folder {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @Column({ type: 'boolean', default: false })
+  isDeleted: boolean;
 }
